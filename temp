@@ -1,0 +1,60 @@
+const http = require('http');
+const mysql = require('mysql');
+
+// Create a connection pool to the database
+const db = mysql.createPool({
+    connectionLimit: 10, // Limit the number of concurrent connections
+    host: 'srv1751.hstgr.io',
+    user: 'u121726114_Royal_jat',
+    password: 'Royal_jat@0555',
+    database: 'u121726114_Royal_jat',
+    connectTimeout: 10000, // Timeout for initial connection
+    acquireTimeout: 10000, // Timeout for acquiring a connection
+    timeout: 10000 // Timeout for query execution
+});
+
+// Function to handle database connection errors
+function handleDatabaseErrors() {
+    db.on('error', function (err) {
+        console.error('MySQL error:', err);
+        if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+            // Reconnect if the connection was lost
+            console.log('Reconnecting to the database...');
+            handleDatabaseErrors();
+        } else {
+            throw err;
+        }
+    });
+}
+
+// Establish initial connection and handle errors
+handleDatabaseErrors();
+
+// Create an HTTP server
+const server = http.createServer((req, res) => {
+    if (req.url === '/') {
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end('Hello, world!\n');
+    } else if (req.url === '/dbtest') {
+        // Test database connection
+        db.query('SELECT NOW()', (err, result) => {
+            if (err) {
+                console.error('Error querying the database:', err);
+                res.writeHead(500, { 'Content-Type': 'text/plain' });
+                res.end('Database query failed\n');
+                return;
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+        });
+    } else {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found\n');
+    }
+});
+
+// Start the server
+const PORT = 5003;
+server.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
